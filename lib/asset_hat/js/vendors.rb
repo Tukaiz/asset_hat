@@ -32,7 +32,8 @@ module AssetHat
         :yui
       ]
       VENDORS_ON_CDNJS = [
-        :lab_js
+        :lab_js,
+        :headjs
       ]
       VENDORS = VENDORS_ON_GOOGLE_CDN + VENDORS_ON_CDNJS
 
@@ -163,29 +164,10 @@ module AssetHat
           uris[:remote] = "http#{'s' if use_ssl}://ajax.googleapis.com/ajax/libs/webfont/#{version}/webfont.js"
         when :lab_js
           uris[:local ] = "#{['LAB', version].compact.join('-')}.min.js"
-
-          remote_host =
-            if use_ssl
-              'https://d3eee1nukb5wg.cloudfront.net/'
-                # This must match the value in the cdnjs repo:
-                # https://github.com/cdnjs/cdnjs/raw/master/https_location
-                #
-                # Amazon CloudFront doesn't support SSL, as discussed here:
-                # - http://www.cdnjs.com/#IDComment130405257
-                # - https://forums.aws.amazon.com/message.jspa?messageID=141951
-                # As a result, the SSL certificate at <https://cdnjs.com> is
-                # invalid. To work around this, we instead load assets via
-                # cdnjs's CloudFront bucket ID. The bucket ID may change in
-                # the future, so it should be synced with the host published
-                # in the cdnjs repo, as noted above.
-                #
-                # For complete control over this, you can simply download the
-                # vendor JS and host it on a server where you can maintain
-                # SSL certificates.
-            else
-              'http://ajax.cdnjs.com'
-            end
-          uris[:remote] = "#{remote_host}/ajax/libs/labjs/#{version}/LAB.min.js"
+          uris[:remote] = "http#{'s' if use_ssl}://cdnjs.cloudflare.com/ajax/libs/labjs/#{version}/LAB.min.js"
+        when :headjs
+          uris[:local ] = "#{['head', version].compact.join('-')}.min.js"
+          uris[:remote] = "http#{'s' if use_ssl}://cdnjs.cloudflare.com/ajax/libs/headjs/#{version}/head.min.js"
         else nil # TODO: Write to log
         end
 
@@ -196,17 +178,28 @@ module AssetHat
         uris
       end
 
-      # Usage (currently only supports LABjs):
+      # Usage (Supports LABjs or head.js):
       #
+      #   LABjs:
       #   AssetHat::JS::Vendors.loader_js :lab_js,
       #     :urls => ['/javascripts/app.js',
       #               'http://cdn.example.com/jquery.js']
       #
-      # Returns a string of JS:
+      #   Returns this string of JS:
       #
-      #   window.$LABinst=$LAB.
-      #     script('/javascripts/app.js').wait().
-      #     script('http://cdn.example.com/jquery.js').wait();
+      #     window.$LABinst=$LAB.
+      #       script('/javascripts/app.js').wait().
+      #       script('http://cdn.example.com/jquery.js').wait();
+      #
+      #   head.js:
+      #   AssetHat::JS::Vendors.loader_js :headjs,
+      #     :urls => ['/javascripts/app.js',
+      #               'http://cdn.example.com/jquery.js']
+      #
+      #   Returns this string of JS:
+      #
+      #     head.js('/javascripts/app.js', 'http://cdn.example.com/jquery.js');
+      #
       def self.loader_js(loader, opts)
         return nil unless opts[:urls]
 
@@ -224,6 +217,14 @@ module AssetHat
               # this may use even more bytes.
           end
           lines.join("\n")
+        when :headjs
+          urls  = opts[:urls].flatten
+          lines = ['head.js(']
+          urls.each_with_index do |url, i|
+            is_last = i >= urls.length - 1
+            lines << "'#{url}'#{is_last ? ');' : ','}"
+          end
+          lines
         end
       end
 

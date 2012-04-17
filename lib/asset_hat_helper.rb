@@ -342,6 +342,11 @@ module AssetHatHelper
           htmls << '<script type="text/javascript">'
           htmls << AssetHat::JS::Vendors.loader_js(:lab_js, :urls => urls)
           htmls << '</script>'
+        when :headjs
+          htmls << include_js(:headjs)
+          htmls << '<script type="text/javascript">'
+          htmls << AssetHat::JS::Vendors.loader_js(:headjs, :urls => urls)
+          htmls << '</script>'
         end
       end
 
